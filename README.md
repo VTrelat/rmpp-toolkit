@@ -1,9 +1,12 @@
 # rmpp-toolkit
 
 Scripts for customizing a **reMarkable Paper Pro** over SSH from macOS.
-
 Paper Pro only. reMarkable 1/2 have a different CPU architecture and a real
 `/dev/fb0`; use [Toltec](https://toltec-dev.org/) for those.
+
+> [!NOTE]
+> Some parts of this repository were generated using Claude Sonnet 5 and Opus 4.8.  I originally wrote the scripts which worked locally on my machine.
+> I felt this project was worth sharing and used Claude to refine it and ensure the components work together correctly.
 
 ## Tools
 

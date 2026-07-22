@@ -1,0 +1,19 @@
+# Splash originals pulled off the device — device-specific, not source.
+.backups/
+
+# Never commit credentials. install-stream.sh writes the password directly to
+# the tablet (mode 600 on encrypted /home) and prints it once; it is not stored
+# here, but keep these patterns as a guard against pasting one in.
+*.env
+.gms_pw
+*secret*
+*.key
+*.pem
+*.crt
+
+# Composed splash output and downloaded binaries.
+*_1620x2160*.png
+gomarkablestream-*
+checksums.txt
+
+.DS_Store

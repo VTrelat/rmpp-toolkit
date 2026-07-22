@@ -1,0 +1,21 @@
+[Unit]
+Description=goMarkableStream - live screen viewer over USB
+After=xochitl.service systemd-networkd.service
+# /home is an encrypted volume unlocked during boot; the binary and the
+# environment file both live there, so do not start before it is mounted.
+RequiresMountsFor=/home/root
+
+[Service]
+Type=simple
+WorkingDirectory=/home/root
+# Credentials live here (mode 600, on encrypted /home) rather than in this unit,
+# which sits on the unencrypted rootfs.
+EnvironmentFile=/home/root/.gms.env
+ExecStart=/home/root/goMarkableStream
+# Binding to the USB address means the bind fails if usb0 has no IP yet at boot.
+# Restart=always with a delay simply retries until the interface appears.
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

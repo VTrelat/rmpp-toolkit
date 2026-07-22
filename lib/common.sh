@@ -75,11 +75,17 @@ rootfs_rw() {
 
 # --- persistent writes under / ----------------------------------------------
 
+# Mountpoint used to expose the real rootfs. /mnt already exists and is empty on
+# stock firmware, so binding directly onto it needs no mkdir -- which matters
+# because /mnt lives on the read-only rootfs and creating a subdirectory there
+# would require a remount even for a read-only inspection.
+ROOTFS_BIND=/mnt
+
 # push_persistent <local-file> <absolute-remote-path> [mode]
 #
 # Writes to the *real* on-disk filesystem, not the volatile overlay. A plain
 # (non-recursive) bind mount of / exposes the underlying tree without any of the
-# submounts, so /mnt/rootfs/etc is the real /etc rather than the tmpfs overlay.
+# submounts, so $ROOTFS_BIND/etc is the real /etc rather than the tmpfs overlay.
 # A copy also goes to the live path so the change takes effect immediately.
 push_persistent() {
   local src="$1" dest="$2" mode="${3:-644}" tmp="/home/root/.rmpp-stage"
@@ -88,18 +94,17 @@ push_persistent() {
   rootfs_rw
   rsh "
     set -e
-    mkdir -p /mnt/rootfs
-    mount --bind / /mnt/rootfs
-    mkdir -p \"\$(dirname /mnt/rootfs${dest})\"
-    cp '$tmp' '/mnt/rootfs${dest}'
-    chmod $mode '/mnt/rootfs${dest}'
-    umount /mnt/rootfs
+    mount --bind / $ROOTFS_BIND
+    mkdir -p \"\$(dirname $ROOTFS_BIND${dest})\"
+    cp '$tmp' '$ROOTFS_BIND${dest}'
+    chmod $mode '$ROOTFS_BIND${dest}'
+    umount $ROOTFS_BIND
     mkdir -p \"\$(dirname ${dest})\"
     cp '$tmp' '${dest}'
     chmod $mode '${dest}'
     rm -f '$tmp'
     sync
-  " || { rsh 'umount /mnt/rootfs 2>/dev/null'; die "failed to write $dest"; }
+  " || { rsh "umount $ROOTFS_BIND 2>/dev/null"; die "failed to write $dest"; }
 }
 
 # symlink_persistent <link-target> <absolute-link-path>
@@ -111,15 +116,24 @@ symlink_persistent() {
   rootfs_rw
   rsh "
     set -e
-    mkdir -p /mnt/rootfs
-    mount --bind / /mnt/rootfs
-    mkdir -p \"\$(dirname /mnt/rootfs${link})\"
-    ln -sf '${target}' '/mnt/rootfs${link}'
-    umount /mnt/rootfs
+    mount --bind / $ROOTFS_BIND
+    mkdir -p \"\$(dirname $ROOTFS_BIND${link})\"
+    ln -sf '${target}' '$ROOTFS_BIND${link}'
+    umount $ROOTFS_BIND
     mkdir -p \"\$(dirname ${link})\"
     ln -sf '${target}' '${link}'
     sync
-  " || { rsh 'umount /mnt/rootfs 2>/dev/null'; die "failed to link $link"; }
+  " || { rsh "umount $ROOTFS_BIND 2>/dev/null"; die "failed to link $link"; }
+}
+
+# on_real_rootfs <absolute-path> -> prints "yes" or "no"
+#
+# Read-only check of whether a path exists on the persistent filesystem rather
+# than only in the volatile overlay. Works without remounting anything rw.
+on_real_rootfs() {
+  rsh "mount --bind / $ROOTFS_BIND 2>/dev/null &&
+       { test -e '$ROOTFS_BIND$1' && echo yes || echo no; } ;
+       umount $ROOTFS_BIND 2>/dev/null" | head -n 1
 }
 
 # --- process control ---------------------------------------------------------

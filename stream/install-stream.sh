@@ -145,7 +145,13 @@ do_status() {
   echo "binary:  $(rsh "test -x $REMOTE_BIN && echo present || echo missing")"
   echo "env:     $(rsh "test -f $REMOTE_ENV && echo present || echo missing")"
   echo "bind:    $(rsh "grep BIND_ADDR $REMOTE_ENV 2>/dev/null | cut -d= -f2")"
-  echo "persist: $(rsh "mount --bind / /mnt/rootfs 2>/dev/null; test -f /mnt/rootfs$UNIT_PATH && echo 'unit on real rootfs' || echo 'VOLATILE ONLY - will not survive reboot'; umount /mnt/rootfs 2>/dev/null")"
+  if [ "$(rsh "test -f $UNIT_PATH && echo yes || echo no")" = no ]; then
+    echo "persist: not installed"
+  elif [ "$(on_real_rootfs "$UNIT_PATH")" = yes ]; then
+    echo "persist: unit on real rootfs"
+  else
+    echo "persist: VOLATILE ONLY - will not survive reboot (see docs/CAVEATS.md)"
+  fi
   rsh "netstat -ltn 2>/dev/null | grep 2001" || echo "not listening"
 }
 
@@ -155,9 +161,9 @@ do_uninstall() {
   kill_remote "[/.]goMarkableStream" >/dev/null || true
   rootfs_rw
   rsh "
-    mkdir -p /mnt/rootfs; mount --bind / /mnt/rootfs
-    rm -f /mnt/rootfs$UNIT_PATH /mnt/rootfs/etc/systemd/system/multi-user.target.wants/$UNIT_NAME.service
-    umount /mnt/rootfs
+    mount --bind / $ROOTFS_BIND
+    rm -f $ROOTFS_BIND$UNIT_PATH $ROOTFS_BIND/etc/systemd/system/multi-user.target.wants/$UNIT_NAME.service
+    umount $ROOTFS_BIND
     rm -f $UNIT_PATH /etc/systemd/system/multi-user.target.wants/$UNIT_NAME.service
     sync
   "

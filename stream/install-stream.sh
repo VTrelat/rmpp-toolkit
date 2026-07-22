@@ -9,6 +9,9 @@
 #   ./install-stream.sh --bind 0.0.0.0:2001  # expose on wifi too -- read the warning
 #   ./install-stream.sh --status
 #   ./install-stream.sh --uninstall
+#   ./install-stream.sh --uninstall --keep-config   # keep JWT key + TLS cert, so
+#                                                   # browser sessions survive a
+#                                                   # reinstall
 #
 # Upstream: https://github.com/owulveryck/goMarkableStream
 
@@ -22,22 +25,30 @@ VERSION="${GMS_VERSION:-v1.3.1}"     # pinned; --version latest to track upstrea
 ASSET=gomarkablestream-RMPRO         # Paper Pro is aarch64; RM2 asset will not run
 REMOTE_BIN=/home/root/goMarkableStream
 REMOTE_ENV=/home/root/.gms.env
+# Holds the JWT signing key and the TLS certificate. Deleting it silently logs
+# out every browser: cached tokens are validated against a key that no longer
+# exists, and the app just retries ("Reconnecting attempt N/10") with no hint
+# that a re-login is what is needed.
+REMOTE_CONFIG=/home/root/.config/goMarkableStream
+JWT_KEY="$REMOTE_CONFIG/secrets/jwt_secret.key"
 UNIT_PATH=/etc/systemd/system/gomarkablestream.service
 UNIT_NAME=gomarkablestream
 
 BIND="10.11.99.1:2001"
 USERNAME=admin
 PASSWORD=""
+KEEP_CONFIG=0
 ACTION=install
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --password)  PASSWORD="${2:?--password needs a value}"; shift 2 ;;
-    --username)  USERNAME="${2:?--username needs a value}"; shift 2 ;;
-    --bind)      BIND="${2:?--bind needs host:port}"; shift 2 ;;
-    --version)   VERSION="${2:?--version needs a tag or 'latest'}"; shift 2 ;;
-    --status)    ACTION=status; shift ;;
-    --uninstall) ACTION=uninstall; shift ;;
+    --password)    PASSWORD="${2:?--password needs a value}"; shift 2 ;;
+    --username)    USERNAME="${2:?--username needs a value}"; shift 2 ;;
+    --bind)        BIND="${2:?--bind needs host:port}"; shift 2 ;;
+    --version)     VERSION="${2:?--version needs a tag or 'latest'}"; shift 2 ;;
+    --keep-config) KEEP_CONFIG=1; shift ;;
+    --status)      ACTION=status; shift ;;
+    --uninstall)   ACTION=uninstall; shift ;;
     -h|--help)   awk 'NR>1 && /^#/ {sub(/^# ?/,""); print; next} NR>1 {exit}' "$0"; exit 0 ;;
     *) die "unknown option: $1" ;;
   esac
@@ -90,6 +101,11 @@ do_install() {
     The safe default is 10.11.99.1:2001 (USB only)." ;;
   esac
 
+  # Remember whether a signing key already exists. If it does, the server reuses
+  # it and existing browser sessions keep working; if not, one is generated and
+  # every saved session becomes invalid.
+  local had_key; had_key="$(rsh "test -f $JWT_KEY && echo yes || echo no")"
+
   local tmp; tmp="$(mktemp -d -t rmpp-gms)"
   trap 'rm -rf "$tmp"' RETURN
   fetch_verified "$tmp"
@@ -137,6 +153,19 @@ EOF
   info "password: $PASSWORD"
   [ "${GENERATED:-0}" = 1 ] && info "(generated -- save it now, it is not stored on this machine)"
   info "The TLS certificate is self-signed, so your browser will warn once."
+
+  if [ "$had_key" = no ]; then
+    echo
+    warn "a new JWT signing key and TLS certificate were generated.
+    Any browser holding a session from a previous install will now fail with
+    'Reconnecting (attempt N/10)' -- the cached token is signed with a key that
+    no longer exists, and the app gives no clue that this is the cause.
+
+    Clear the stale token in the browser's console and log in again:
+        localStorage.clear(); location.reload()
+
+    Use --keep-config on uninstall to preserve the key and avoid this."
+  fi
 }
 
 do_status() {
@@ -169,8 +198,18 @@ do_uninstall() {
   "
   restore_rootfs_ro
   rsh "systemctl daemon-reload"
-  rsh "rm -f $REMOTE_BIN $REMOTE_ENV; rm -rf /home/root/.config/goMarkableStream"
-  say "removed service, binary, credentials and generated certificates"
+  rsh "rm -f $REMOTE_BIN $REMOTE_ENV"
+  if [ "$KEEP_CONFIG" = 1 ]; then
+    say "removed service, binary and credentials"
+    info "kept $REMOTE_CONFIG (JWT key + TLS certificate)"
+    info "browser sessions will still work after reinstalling"
+  else
+    rsh "rm -rf $REMOTE_CONFIG"
+    say "removed service, binary, credentials, JWT key and TLS certificate"
+    warn "browsers holding a session for this device must clear it and log in again:
+        localStorage.clear(); location.reload()
+    Next time, pass --keep-config to preserve the key and avoid this."
+  fi
 }
 
 case "$ACTION" in

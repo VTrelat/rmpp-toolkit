@@ -104,6 +104,42 @@ expired*. Fix before installing:
 ssh root@10.11.99.1 "date -u -s '$(date -u '+%Y-%m-%d %H:%M:%S')'"
 ```
 
+## Reinstalling logs every browser out, silently
+
+`/home/root/.config/goMarkableStream` holds the JWT signing key and the TLS
+certificate. A plain `--uninstall` deletes it, and the next install generates a
+new key. Any browser still holding a token from before is then rejected — but
+the app does not say so. It shows:
+
+```
+Reconnecting (attempt 6/10)...
+```
+
+which looks exactly like a network or server problem. The server is fine; the
+cached token is signed with a key that no longer exists.
+
+Fix it in the browser, not on the device:
+
+```javascript
+localStorage.clear(); location.reload()
+```
+
+Then log in again. In Safari the same thing is reachable via
+`Réglages` → `Confidentialité` → `Gérer les données de sites web` → remove
+`10.11.99.1`.
+
+To avoid it entirely, keep the key across a reinstall:
+
+```bash
+./setup.sh stream --uninstall --keep-config
+```
+
+`install-stream.sh` warns when it has generated a new key, so you know a
+re-login is required rather than guessing.
+
+The certificate is regenerated at the same time, so expect the browser's
+self-signed-certificate interstitial once more too.
+
 ## Do not expose the stream on wifi
 
 The default bind is `10.11.99.1:2001` — the USB address only. Binding to

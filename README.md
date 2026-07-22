@@ -55,6 +55,13 @@ The TLS certificate is self-signed, so your browser warns once. That is expected
 | `--version latest` | track upstream instead of the pinned release |
 | `--status` | report unit state, bind address, and whether it will survive reboot |
 | `--uninstall` | remove service, binary, credentials, certificates |
+| `--uninstall --keep-config` | keep the JWT key and TLS cert so browser sessions survive a reinstall |
+
+If you reinstall without `--keep-config`, a new JWT signing key is generated and
+every browser holding a saved session starts showing
+`Reconnecting (attempt N/10)` — which looks like a network fault but is just a
+stale token. Run `localStorage.clear(); location.reload()` in the browser console
+and log in again. The installer warns you when this applies.
 
 By default it binds to `10.11.99.1:2001` — the USB address only — so it is not
 reachable over wifi.

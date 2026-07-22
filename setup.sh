@@ -48,8 +48,8 @@ doctor() {
   echo
   say "toolkit components"
   info "stream service: $(rsh 'systemctl is-active gomarkablestream 2>&1') / $(rsh 'systemctl is-enabled gomarkablestream 2>&1')"
-  info "splash boot:    $(rsh 'test -f /usr/share/remarkable/starting.png.orig && echo customised || echo stock')"
-  info "splash sleep:   $(rsh 'test -f /usr/share/remarkable/suspended.png.orig && echo customised || echo stock')"
+  info "splash boot:    $(rsh 'test -f /usr/share/remarkable/starting.png.orig && echo customized || echo stock')"
+  info "splash sleep:   $(rsh 'test -f /usr/share/remarkable/suspended.png.orig && echo customized || echo stock')"
 }
 
 cmd="${1:-}"

@@ -78,7 +78,7 @@ you record.
 
 Pixels are **BGRA, 1620×2160, stride 6528 bytes**. The stride is the trap: 6528
 bytes is 1632 pixels × 4, and 1632 is 1620 padded up to 32-pixel DRM alignment.
-Decoding at `1620 × 4 = 6480` produces a recognisable but progressively sheared
+Decoding at `1620 × 4 = 6480` produces a recognizable but progressively sheared
 image — the diagonal-smear signature of a wrong stride.
 
 ```python

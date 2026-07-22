@@ -27,15 +27,19 @@ has the same problem: its symlink goes to the volatile copy.
 
 The fix, used by `push_persistent`/`symlink_persistent` in `lib/common.sh`: a
 plain (non-recursive) bind mount of `/` exposes the underlying filesystem
-*without* its submounts, so `/mnt/rootfs/etc` is the real on-disk `/etc`.
+*without* its submounts, so `/mnt/etc` is the real on-disk `/etc`.
 
 ```bash
 mount -o remount,rw /
-mkdir -p /mnt/rootfs && mount --bind / /mnt/rootfs
-cp unit.service /mnt/rootfs/etc/systemd/system/
-umount /mnt/rootfs
+mount --bind / /mnt
+cp unit.service /mnt/etc/systemd/system/
+umount /mnt
 mount -o remount,ro /
 ```
+
+Bind onto `/mnt` itself, not a subdirectory of it. `/mnt` exists and is empty on
+stock firmware, whereas creating `/mnt/something` first would need the rootfs
+remounted read-write even for a read-only inspection.
 
 Check with `./setup.sh stream --status`, which reports `VOLATILE ONLY` if a unit
 exists solely in the overlay.
@@ -147,12 +151,12 @@ The default bind is `10.11.99.1:2001` — the USB address only. Binding to
 If you genuinely need it, use a long password and prefer Tailscale over exposing
 the port directly.
 
-## Colour splash screens
+## Color splash screens
 
-Stock `starting.png` and `suspended.png` are 8-bit greyscale, but `factory.png`
-in the same directory is 8-bit **colormap** and renders in colour — verified on
+Stock `starting.png` and `suspended.png` are 8-bit grayscale, but `factory.png`
+in the same directory is 8-bit **colormap** and renders in color — verified on
 the boot splash. `apply-splash.sh` therefore emits `PNG8:` colormap output. If a
-future firmware regresses this, fall back to greyscale:
+future firmware regresses this, fall back to grayscale:
 
 ```bash
 magick in.png -colorspace Gray -depth 8 -type Grayscale out.png

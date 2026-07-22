@@ -62,9 +62,9 @@ files_for_targets >/dev/null
 
 # Compose the source image to exactly panel size.
 #
-# Stock starting.png/suspended.png are 8-bit greyscale, but factory.png in the
-# same directory is 8-bit colormap and renders in colour -- verified on the boot
-# splash. So we emit PNG8 colormap to get colour on the Gallery 3 panel.
+# Stock starting.png/suspended.png are 8-bit grayscale, but factory.png in the
+# same directory is 8-bit colormap and renders in color -- verified on the boot
+# splash. So we emit PNG8 colormap to get color on the Gallery 3 panel.
 compose() {
   local src="$1" out="$2"
   require_cmd magick "Install ImageMagick:  brew install imagemagick"
